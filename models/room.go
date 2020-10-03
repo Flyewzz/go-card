@@ -120,7 +120,7 @@ func (room *Room) Listen() {
 								continue
 							}
 							step.PlayerId = player.ID
-							room.game.PushCard(step.PlayerId, step.CardId)
+							room.game.PushCard(step.PlayerId, step.Position)
 						}
 					}
 				}(u, player)

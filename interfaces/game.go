@@ -5,7 +5,7 @@ import (
 )
 
 type Game interface {
-	PushCard(playerId int, cardID int) error
+	PushCard(playerId int, cardPosition int) error
 	Listen()
 	GetPlayerById(id int) (*game.Player, error)
 	RegisterPlayer(id int) error

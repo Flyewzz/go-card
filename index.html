@@ -21,7 +21,7 @@
       socket.send(JSON.stringify({
         type: 'push_card',
         payload: {
-          card_id: num,
+          position: num,
         },
       }))
     }
@@ -32,9 +32,9 @@
           };
           
           socket.onmessage = function(event) {
-            alert(`[message] Data received from server: ${event.data}`);
+            alert(`[message] Data received from server: ${JSON.parse(event.data)}`);
           };
-          
+          z
           socket.onclose = function(event) {
             if (event.wasClean) {
               alert(`[close] Connection closed cleanly, code=${event.code} reason=${event.reason}`);

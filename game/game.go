@@ -61,10 +61,10 @@ func NewGame(deck *Deck) *Game {
 	}
 }
 
-func (game *Game) PushCard(playerId int, cardID int) error {
+func (game *Game) PushCard(playerId int, cardPosition int) error {
 	step := Step{
 		PlayerId: playerId,
-		CardId:   cardID,
+		Position: cardPosition,
 	}
 	stepData, err := json.Marshal(step)
 	if err != nil {
@@ -78,17 +78,22 @@ func (game *Game) PushCard(playerId int, cardID int) error {
 	return nil
 }
 
-func (game *Game) Listen() {
-	game.deck.Shuffle()
-	game.turn = game.ChooseRandomPlayer()
+func (game *Game) Print() {
 	fmt.Printf("Очередь игрока %d\n", game.turn.ID)
-	game.CardsDeal()
 	fmt.Println("Содержимое колоды:")
 	fmt.Println(game.deck.Print())
+	fmt.Println("Содержимое поля:")
+	fmt.Println(game.field.Print())
 	for i := 0; i < len(game.Players); i++ {
 		fmt.Printf("Рука игрока %d\n", i+1)
 		fmt.Println(game.Players[i].Cards.Print())
 	}
+}
+func (game *Game) Listen() {
+	game.deck.Shuffle()
+	game.turn = game.ChooseRandomPlayer()
+	game.CardsDeal()
+	game.Print()
 	game.Init()
 	for {
 		select {
@@ -104,9 +109,9 @@ func (game *Game) Listen() {
 					player.MessageCh <- msg
 					continue
 				}
-				player, _ := game.GetPlayerById(game.turn.ID)
+				player := game.turn
 				game.mtx.Lock()
-				err := player.Cards.MoveCard(step.CardId, game.field)
+				err := player.Cards.MoveCard(step.Position, game.field)
 				game.mtx.Unlock()
 				if err != nil {
 					msg.Type = "moving card error"
@@ -114,7 +119,9 @@ func (game *Game) Listen() {
 					player.MessageCh <- msg
 					continue
 				}
+				log.Printf("Card %d moved\n", step.Position)
 				game.NextStep()
+				game.Print()
 			}
 		case <-game.FinishCh:
 			finishMsg := Message{
@@ -152,6 +159,7 @@ func (game *Game) Init() {
 }
 
 func (game *Game) giveCardsToPlayer(player *Player) {
+	// TODO: Количество карт должно быть вариативным (не всегда строго 6)
 	for i := 0; i < 6; i++ {
 		game.mtx.Lock()
 		game.deck.MoveCard(0, player.Cards)

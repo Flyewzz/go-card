@@ -16,13 +16,14 @@ func GetRouter() *mux.Router {
 		Rooms: make(map[string]*Room),
 	}
 
-	// Needed to delete soon
+	// TODO Needed to delete soon
 	var deck = &game.Deck{}
 	for i := 0; i < 15; i++ {
 		deck.Push(&game.Card{
 			ID: i,
 		})
 	}
+	//*******************************
 
 	game := game.NewGame(deck)
 	room := NewRoom(2, game)

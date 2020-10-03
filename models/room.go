@@ -96,7 +96,9 @@ func (room *Room) Listen() {
 					for msg := range player.MessageCh {
 						log.Println("Ошибка игрока: ", msg.Type)
 						err := u.Send(msg)
-						log.Println("Ошибка отправки сокета: ", err.Error())
+						if err != nil {
+							log.Println("Ошибка отправки сокета: ", err.Error())
+						}
 					}
 					log.Println("Корректное завершение горутины чтения")
 				}(u, player)

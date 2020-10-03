@@ -18,17 +18,16 @@ type User struct {
 
 func NewUser(conn *websocket.Conn) *User {
 	user := &User{
-		Conn:    conn,
-		ErrorCh: make(chan error),
-		stop:    make(chan struct{}, 1),
+		Conn:      conn,
+		ErrorCh:   make(chan error),
+		MessageCh: make(chan *game.Message, 1),
+		stop:      make(chan struct{}, 1),
 	}
-	go user.Listen()
 	return user
 }
 
-func (u *User) Disconnect() error {
+func (u *User) Disconnect() {
 	u.stop <- struct{}{}
-	return u.Conn.Close()
 }
 
 func (u *User) Send(msg *game.Message) error {
@@ -41,10 +40,10 @@ func (u *User) Send(msg *game.Message) error {
 }
 
 func (u *User) Listen() {
+	defer u.Conn.Close()
 	for {
 		select {
 		case <-u.stop:
-			close(u.MessageCh)
 			return
 		default:
 			_, data, err := u.Conn.ReadMessage()
@@ -54,6 +53,7 @@ func (u *User) Listen() {
 					return
 				}
 				u.ErrorCh <- nil
+				return
 			}
 			var msg game.Message
 			err = json.Unmarshal(data, &msg)

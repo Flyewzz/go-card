@@ -25,5 +25,6 @@ func (hd *HandlerData) ConnectToRoom(w http.ResponseWriter, r *http.Request) {
 	}
 
 	user := NewUser(conn)
+	go user.Listen()
 	hd.Rooms["first"].AddUser(user)
 }

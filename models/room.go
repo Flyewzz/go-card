@@ -29,7 +29,9 @@ func (room *Room) UserMessageHandler(user *User) {
 		case err := <-user.ErrorCh:
 			if err != nil {
 				room.RemoveUser(user)
-				room.game.Finish()
+				if room.game.GetState() == "in progress" {
+					room.game.Finish()
+				}
 				return
 			}
 		}
@@ -60,7 +62,7 @@ func (room *Room) RemoveUser(u *User) error {
 		log.Println(err)
 		return err
 	}
-	go u.Disconnect()
+	u.Disconnect()
 	room.mtx.Lock()
 	delete(room.Users, u.ID)
 	room.mtx.Unlock()
@@ -72,6 +74,11 @@ func (room *Room) Listen() {
 	for {
 		select {
 		case u := <-room.register:
+			if !room.IsAvailable() {
+				// TODO: Send a message that the room is busy
+				go u.Disconnect()
+				continue
+			}
 			u.ID = len(room.Users) + 1
 			room.mtx.Lock()
 			room.Users[u.ID] = u
@@ -93,29 +100,35 @@ func (room *Room) Listen() {
 			for _, u := range room.Users {
 				player, _ := room.game.GetPlayerById(u.ID)
 				go func(user *User, player *game.Player) {
-					for msg := range player.MessageCh {
-						log.Println("Ошибка игрока: ", msg.Type)
-						err := u.Send(msg)
-						if err != nil {
-							log.Println("Ошибка отправки сокета: ", err.Error())
+					for {
+						select {
+						case msg := <-player.MessageCh:
+							if msg.Type == "finish" {
+								room.RemoveUser(user)
+								return
+							}
+							log.Println("Ошибка игрока: ", msg.Type)
+							err := user.Send(msg)
+							if err != nil {
+								log.Println("Ошибка отправки сокета: ", err.Error())
+							}
+						case msg := <-user.MessageCh:
+							var step game.Step
+							err := json.Unmarshal(msg.Payload, &step)
+							if err != nil {
+								log.Println(err)
+								continue
+							}
+							step.PlayerId = player.ID
+							room.game.PushCard(step.PlayerId, step.CardId)
 						}
-					}
-					log.Println("Корректное завершение горутины чтения")
-				}(u, player)
-				go func(user *User, player *game.Player) {
-					for msg := range user.MessageCh {
-						var step game.Step
-						err := json.Unmarshal(msg.Payload, &step)
-						if err != nil {
-							log.Println(err)
-							continue
-						}
-						step.PlayerId = player.ID
-						room.game.PushCard(step.PlayerId, step.CardId)
 					}
 				}(u, player)
 			}
-
 		}
 	}
+}
+
+func (room *Room) IsAvailable() bool {
+	return (len(room.Users) < room.capacity)
 }

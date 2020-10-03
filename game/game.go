@@ -28,7 +28,7 @@ func (game *Game) RegisterPlayer(id int) error {
 		player := &Player{
 			ID:        id,
 			Cards:     &Deck{},
-			MessageCh: make(chan *Message),
+			MessageCh: make(chan *Message, 1),
 		}
 		game.mtx.Lock()
 		game.Players = append(game.Players, player)
@@ -117,10 +117,15 @@ func (game *Game) Listen() {
 				game.NextStep()
 			}
 		case <-game.FinishCh:
-			log.Println("Game finished")
-			for _, player := range game.Players {
-				close(player.MessageCh)
+			finishMsg := Message{
+				Type: "finish",
 			}
+			for _, player := range game.Players {
+				player.MessageCh <- &finishMsg
+			}
+			game.Players = []*Player{}
+			game.State = "finished"
+			log.Println("Game finished")
 			return
 		}
 	}
@@ -142,6 +147,7 @@ func (game *Game) GetTurn() *Player {
 }
 
 func (game *Game) Init() {
+	game.State = "in progress"
 	game.Ready <- "step"
 }
 
@@ -183,4 +189,8 @@ func (game *Game) CardsDeal() {
 
 func (game *Game) GetStatus() chan string {
 	return game.Ready
+}
+
+func (game *Game) GetState() string {
+	return game.State
 }

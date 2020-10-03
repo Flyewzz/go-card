@@ -11,4 +11,5 @@ type Game interface {
 	RegisterPlayer(id int) error
 	Finish()
 	GetStatus() chan string
+	GetState() string
 }

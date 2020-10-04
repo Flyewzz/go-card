@@ -103,11 +103,15 @@ func (room *Room) Listen() {
 					for {
 						select {
 						case msg := <-player.MessageCh:
-							if msg.Type == "finish" {
+							switch msg.Type {
+							case "finish":
 								room.RemoveUser(user)
 								return
+								// case "update_cards":
+
+								// default:
+								// log.Println("Ошибка игрока: ", msg.Type)
 							}
-							log.Println("Ошибка игрока: ", msg.Type)
 							err := user.Send(msg)
 							if err != nil {
 								log.Println("Ошибка отправки сокета: ", err.Error())

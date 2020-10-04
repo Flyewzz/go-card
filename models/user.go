@@ -35,7 +35,7 @@ func (u *User) Send(msg *game.Message) error {
 	if err != nil {
 		return err
 	}
-	err = u.Conn.WriteJSON(data)
+	err = u.Conn.WriteMessage(websocket.TextMessage, data)
 	return err
 }
 

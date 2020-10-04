@@ -94,6 +94,7 @@ func (game *Game) Listen() {
 	game.turn = game.ChooseRandomPlayer()
 	game.CardsDeal()
 	game.Print()
+	game.UpdateCards()
 	game.Init()
 	for {
 		select {
@@ -120,16 +121,18 @@ func (game *Game) Listen() {
 					continue
 				}
 				log.Printf("Card %d moved\n", step.Position)
+
 				game.NextStep()
+				game.UpdateCards()
 				game.Print()
 			}
 		case <-game.FinishCh:
 			finishMsg := Message{
 				Type: "finish",
 			}
-			for _, player := range game.Players {
-				player.MessageCh <- &finishMsg
-			}
+			game.SendBroadcast(func(player *Player) *Message {
+				return &finishMsg
+			})
 			game.Players = []*Player{}
 			game.State = "finished"
 			log.Println("Game finished")
@@ -201,4 +204,31 @@ func (game *Game) GetStatus() chan string {
 
 func (game *Game) GetState() string {
 	return game.State
+}
+
+func (game *Game) SendToPlayer(msg *Message, player *Player) {
+	player.MessageCh <- msg
+}
+
+func (game *Game) SendBroadcast(transform func(player *Player) *Message) {
+	for _, player := range game.Players {
+		game.SendToPlayer(transform(player), player)
+	}
+}
+
+func (game *Game) UpdateCards() {
+	game.SendBroadcast(func(player *Player) *Message {
+		type Payload struct {
+			Cards []*Card `json:"cards"`
+		}
+		payload := Payload{
+			Cards: player.Cards.Cards,
+		}
+		payloadData, _ := json.Marshal(payload)
+		msg := &Message{
+			Type:    "update_cards",
+			Payload: payloadData,
+		}
+		return msg
+	})
 }
